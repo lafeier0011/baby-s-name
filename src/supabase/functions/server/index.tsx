@@ -14,13 +14,7 @@ app.use('*', logger(console.log));
 app.use(
   "/*",
   cors({
-    origin: [
-      "https://awesomename.top",
-      "https://www.awesomename.top",
-      // 开发环境（可选，正式上线后可以删除）
-      "http://localhost:5173",
-      "http://localhost:4173",
-    ],
+    origin: "*",
     allowHeaders: ["Content-Type", "Authorization"],
     allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     exposeHeaders: ["Content-Length"],
