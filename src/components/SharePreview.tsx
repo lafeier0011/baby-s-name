@@ -182,7 +182,7 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
                     }}>
                       <div style={{ flex: 1 }}>
                         <h3 style={{ 
-                          fontSize: '36px', 
+                          fontSize: '28px', 
                           fontFamily: 'Georgia, serif', 
                           color: colors.accent, 
                           fontWeight: 700, 
