@@ -73,6 +73,112 @@ function getWesternZodiac(month: number, day: number): string {
   return "摩羯座";
 }
 
+function buildNamePrompt(gender: string, nameCount: number, surname: string, fatherName: string, motherName: string, year: number, month: number, day: number, birthTimeText: string, zodiac: string, element: string, westernZodiac: string, prefText: string, excludeNamesText: string, customExpectationText: string, nameLength: string): string {
+  let nameRequirement = "";
+  let jsonFormat = "";
+  
+  let lengthRequirement = "";
+  if (nameLength === "single") {
+    lengthRequirement = "（必须全部为单字名，即：姓+1个字）";
+  } else if (nameLength === "double") {
+    lengthRequirement = "（必须全部为双字名，即：姓+2个字）";
+  } else {
+    const singleCount = Math.floor(nameCount / 2);
+    const doubleCount = nameCount - singleCount;
+    lengthRequirement = `（其中${singleCount}个为单字名，${doubleCount}个为双字名）`;
+  }
+  
+  if (gender === "boy") {
+    nameRequirement = `生成${nameCount}个男宝宝名字${lengthRequirement}`;
+    jsonFormat = `{
+  "boyNames": [
+    {
+      "chineseName": "姓名",
+      "pinyin": "xing ming",
+      "englishName": "Name",
+      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
+    }
+  ]
+}`;
+  } else if (gender === "girl") {
+    nameRequirement = `生成${nameCount}个女宝宝名字${lengthRequirement}`;
+    jsonFormat = `{
+  "girlNames": [
+    {
+      "chineseName": "姓名",
+      "pinyin": "xing ming",
+      "englishName": "Name",
+      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
+    }
+  ]
+}`;
+  } else {
+    nameRequirement = `生成${nameCount}个男宝宝名字和${nameCount}个女宝宝名字${lengthRequirement.replace("个", "对")}`;
+    jsonFormat = `{
+  "boyNames": [
+    {
+      "chineseName": "姓名",
+      "pinyin": "xing ming",
+      "englishName": "Name",
+      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
+    }
+  ],
+  "girlNames": [
+    {
+      "chineseName": "姓名",
+      "pinyin": "xing ming",
+      "englishName": "Name",
+      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
+    }
+  ]
+}`;
+  }
+
+  return `作为一个专业的中国传统起名专家，请根据以下信息生成名字：
+
+父亲姓名：${fatherName}
+母亲姓名：${motherName}
+宝宝出生日期：${year}年${month}月${day}日${birthTimeText}
+生肖：${zodiac}
+五行属性：${element}
+星座：${westernZodiac}
+姓氏：${surname}${prefText}${excludeNamesText}
+${customExpectationText ? `
+⚠️ ⚠️ ⚠️ 【用户特别要求 - 最高优先级】⚠️ ⚠️ ⚠️
+必须100%严格遵守：${customExpectationText}
+这是最重要的要求，必须在生成每个名字时都遵守！
+` : ''}
+要求：
+${customExpectationText ? `1. ⚠️ 【首要要求】${customExpectationText} - 这是最高优先级，必须100%严格遵守！
+2. ` : '1. '}${nameRequirement}
+${customExpectationText ? '3. ' : '2. '}每个名字必须包含：
+   - 完整中文名（${surname}+名字）
+   - 拼音
+   - 对应的英文名
+   - 详细解释（60-80字，必须含：五行属性 + 具体出处 + 寓意解析）
+      ⚠️ 解释字段严格限制在80字以内，超过80字将被视为无效！
+${customExpectationText ? '4' : '3'}. 名字需符合中国传统文化、五行平衡、生辰八字原理
+${customExpectationText ? '5' : '4'}. 严格遵循用户的偏好设置进行取名
+${customExpectationText ? '6' : '5'}. 寓意美好、音韵优美、易读易记
+${customExpectationText ? '7' : '6'}. 英文名可以是音译或意境对应的英文名
+${customExpectationText ? '8' : '7'}. 🔴【关键要求】出处必须与名字中的具体字有直接关联！
+   - 例如：名字"思齐"必须源自《诗经·大雅·思齐》"思齐大任，文王之母"
+   - 例如：名字"修远"必须源自《楚辞·离骚》"路漫漫其修远兮，吾将上下而求索"
+   - 例如：名字"君行"必须源自《易经·乾卦》"天行健，君子以自强不息"
+   - 例如：名字"明德"必须源自《大学》"大学之道，在明明德"
+   - 不要生成与出处无关的名字！名字的字必须出现在引用的原文中！
+${customExpectationText ? '9' : '8'}. 出处格式要求：
+   - 必须精确到具体篇章
+   - 必须引用包含名字中字的原文（原文不超过20字）
+   - 格式：源自《典籍·篇章》「原文引用」
+   - ⚠️ 原文引用必须简短，不要复制整篇文章！
+${customExpectationText ? '10' : '9'}. 必须严格按照以下JSON格式返回，不要添加任何其他文字：
+
+${jsonFormat}
+
+请直接返回JSON，不要有markdown标记或其他说明文字。`;
+}
+
 // Generate names using Deepseek API
 export async function generateNames(c: Context) {
   try {
@@ -189,125 +295,80 @@ export async function generateNames(c: Context) {
 
 要求简洁优雅，结合五行八字和星座特点，预测可能喜欢的兴趣爱好和活动。直接返回预测文本，不要标题。`;
 
-    // Build name generation requirement based on gender
-    let nameRequirement = "";
-    let jsonFormat = "";
-    
-    if (gender === "boy") {
-      nameRequirement = `生成${nameCount}个男宝宝名字`;
-      jsonFormat = `{
-  "boyNames": [
-    {
-      "chineseName": "姓名",
-      "pinyin": "xing ming",
-      "englishName": "Name",
-      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
-    }
-  ]
-}`;
-    } else if (gender === "girl") {
-      nameRequirement = `生成${nameCount}个女宝宝名字`;
-      jsonFormat = `{
-  "girlNames": [
-    {
-      "chineseName": "姓名",
-      "pinyin": "xing ming",
-      "englishName": "Name",
-      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
-    }
-  ]
-}`;
-    } else {
-      nameRequirement = `生成${nameCount}个男宝宝名字和${nameCount}个女宝宝名字`;
-      jsonFormat = `{
-  "boyNames": [
-    {
-      "chineseName": "姓名",
-      "pinyin": "xing ming",
-      "englishName": "Name",
-      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
-    }
-  ],
-  "girlNames": [
-    {
-      "chineseName": "姓名",
-      "pinyin": "xing ming",
-      "englishName": "Name",
-      "explanation": "属X，源自《XX·篇章》「包含名字中字的原文引用」，寓意..."
-    }
-  ]
-}`;
-    }
-
-    const namePrompt = `作为一个专业的中国传统起名专家，请根据以下信息生成名字：
-
-父亲姓名：${fatherName}
-母亲姓名：${motherName}
-宝宝出生日期：${year}年${month}月${day}日${birthTimeText}
-生肖：${zodiac}
-五行属性：${element}
-星座：${westernZodiac}
-姓氏：${surname}${prefText}${excludeNamesText}
-${customExpectationText ? `
-⚠️ ⚠️ ⚠️ 【用户特别要求 - 最高优先级】⚠️ ⚠️ ⚠️
-必须100%严格遵守：${customExpectationText}
-这是最重要的要求，必须在生成每个名字时都遵守！
-` : ''}
-要求：
-${customExpectationText ? `1. ⚠️ 【首要要求】${customExpectationText} - 这是最高优先级，必须100%严格遵守！
-2. ` : '1. '}${nameRequirement}
-${customExpectationText ? '3. ' : '2. '}每个名字必须包含：
-   - 完整中文名（${surname}+名字）
-   - 拼音
-   - 对应的英文名
-   - 详细解释（60-80字，必须含：五行属性 + 具体出处 + 寓意解析）
-      ⚠️ 解释字段严格限制在80字以内，超过80字将被视为无效！
-${customExpectationText ? '4' : '3'}. 名字需符合中国传统文化、五行平衡、生辰八字原理
-${customExpectationText ? '5' : '4'}. 严格遵循用户的偏好设置进行取名
-${customExpectationText ? '6' : '5'}. 寓意美好、音韵优美、易读易记
-${customExpectationText ? '7' : '6'}. 英文名可以是音译或意境对应的英文名
-${customExpectationText ? '8' : '7'}. 🔴【关键要求】出处必须与名字中的具体字有直接关联！
-   - 例如：名字\"思齐\"必须源自《诗经·大雅·思齐》\"思齐大任，文王之母\"
-   - 例如：名字\"修远\"必须源自《楚辞·离骚》\"路漫漫其修远兮，吾将上下而求索\"
-   - 例如：名字\"君行\"必须源自《易经·乾卦》\"天行健，君子以自强不息\"
-   - 例如：名字\"明德\"必须源自《大学》\"大学之道，在明明德\"
-   - 不要生成与出处无关的名字！名字的字必须出现在引用的原文中！
-${customExpectationText ? '9' : '8'}. 出处格式要求：
-   - 必须精确到具体篇章
-   - 必须引用包含名字中字的原文（原文不超过20字）
-   - 格式：源自《典籍·篇章》「原文引用」
-   - ⚠️ 原文引用必须简短，不要复制整篇文章！
-${customExpectationText ? '10' : '9'}. 必须严格按照以下JSON格式返回，不要添加任何其他文字：
-
-${jsonFormat}
-
-请直接返回JSON，不要有markdown标记或其他说明文字。`;
-
     console.log("Calling Deepseek API for zodiac analysis, career, hobbies and names...");
 
-    // Call Deepseek API for zodiac analysis
-    const analysisResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: "你是一个精通中西方占星学的专家，擅长结合生辰八字和星座分析性格与命运。"
-          },
-          {
-            role: "user",
-            content: analysisPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 300,
+    // Run basic analysis calls in parallel to save time
+    const [analysisResponse, careerResponse, hobbiesResponse] = await Promise.all([
+      // Call Deepseek API for zodiac analysis
+      fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个精通中西方占星学的专家，擅长结合生辰八字和星座分析性格与命运。"
+            },
+            {
+              role: "user",
+              content: analysisPrompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 300,
+        }),
       }),
-    });
+      // Call Deepseek API for career prediction
+      fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个精通中西方占星学的专家，擅长根据生辰八字预测职业倾向。"
+            },
+            {
+              role: "user",
+              content: careerPrompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 100,
+        }),
+      }),
+      // Call Deepseek API for hobbies prediction
+      fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个精通中西方占星学的专家，擅长根据生辰八字预测兴趣爱好。"
+            },
+            {
+              role: "user",
+              content: hobbiesPrompt
+            }
+          ],
+          temperature: 0.7,
+          max_tokens: 100,
+        }),
+      })
+    ]);
 
     let zodiacAnalysis = "";
     if (analysisResponse.ok) {
@@ -315,59 +376,11 @@ ${jsonFormat}
       zodiacAnalysis = analysisData.choices?.[0]?.message?.content?.trim() || "";
     }
 
-    // Call Deepseek API for career prediction
-    const careerResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: "你是一个精通中西方占星学的专家，擅长根据生辰八字预测职业倾向。"
-          },
-          {
-            role: "user",
-            content: careerPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 100,
-      }),
-    });
-
     let career = "";
     if (careerResponse.ok) {
       const careerData = await careerResponse.json();
       career = careerData.choices?.[0]?.message?.content?.trim() || "";
     }
-
-    // Call Deepseek API for hobbies prediction
-    const hobbiesResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: "你是一个精通中西方占星学的专家，擅长根据生辰八字预测兴趣爱好。"
-          },
-          {
-            role: "user",
-            content: hobbiesPrompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 100,
-      }),
-    });
 
     let hobbies = "";
     if (hobbiesResponse.ok) {
@@ -375,62 +388,141 @@ ${jsonFormat}
       hobbies = hobbiesData.choices?.[0]?.message?.content?.trim() || "";
     }
 
-    // Call Deepseek API for names
-    const nameResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "deepseek-chat",
-        messages: [
-          {
-            role: "system",
-            content: "你是一个专业的中国传统起名专家，精通五行八字、诗词典故。请始终返回有效的JSON格式数据，不要添加任何markdown标记或额外说明。"
+    // Call Deepseek API for names (this is the most time-consuming part)
+    // If gender is "both" and nameCount is large, we split it into two parallel calls to avoid timeout
+    let finalNamesData = { boyNames: [], girlNames: [] };
+
+    if (gender === "both") {
+      console.log(`Splitting generation for "both" genders with count ${nameCount}`);
+      
+      const [boyResponse, girlResponse] = await Promise.all([
+        fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
           },
-          {
-            role: "user",
-            content: namePrompt
-          }
-        ],
-        temperature: 0.8,
-        max_tokens: 4000,
-      }),
-    });
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              {
+                role: "system",
+                content: "你是一个专业的中国传统起名专家，精通五行八字、诗词典故。请始终返回有效的JSON格式数据，不要添加任何markdown标记或额外说明。"
+              },
+              {
+                role: "user",
+                content: buildNamePrompt("boy", nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength)
+              }
+            ],
+            temperature: 0.8,
+            max_tokens: 3000,
+          }),
+        }),
+        fetch("https://api.deepseek.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "deepseek-chat",
+            messages: [
+              {
+                role: "system",
+                content: "你是一个专业的中国传统起名专家，精通五行八字、诗词典故。请始终返回有效的JSON格式数据，不要添加任何markdown标记或额外说明。"
+              },
+              {
+                role: "user",
+                content: buildNamePrompt("girl", nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength)
+              }
+            ],
+            temperature: 0.8,
+            max_tokens: 3000,
+          }),
+        })
+      ]);
 
-    if (!nameResponse.ok) {
-      const errorText = await nameResponse.text();
-      console.error("Deepseek API error response:", errorText);
-      return c.json({ 
-        error: "名字生成服务暂时不可用，请稍后重试" 
-      }, 500);
+      if (!boyResponse.ok || !girlResponse.ok) {
+        console.error("Split generation failed:", { 
+          boyStatus: boyResponse.status, 
+          girlStatus: girlResponse.status 
+        });
+        throw new Error("名字生成调用失败");
+      }
+
+      const boyData = await boyResponse.json();
+      const girlData = await girlResponse.json();
+
+      if (!boyData.choices?.[0] || !girlData.choices?.[0]) {
+        console.error("Invalid API response format in split mode", { boyData, girlData });
+        throw new Error("API 响应格式错误");
+      }
+
+      const boyContent = boyData.choices[0].message.content.trim().replace(/```json\s*/g, "").replace(/```\s*/g, "");
+      const girlContent = girlData.choices[0].message.content.trim().replace(/```json\s*/g, "").replace(/```\s*/g, "");
+
+      try {
+        const boyJson = JSON.parse(boyContent);
+        const girlJson = JSON.parse(girlContent);
+        finalNamesData.boyNames = boyJson.boyNames || [];
+        finalNamesData.girlNames = girlJson.girlNames || [];
+        console.log(`Parsed split results: ${finalNamesData.boyNames.length} boys, ${finalNamesData.girlNames.length} girls`);
+      } catch (e) {
+        console.error("Failed to parse split JSON results:", e, { boyContent, girlContent });
+        throw new Error("名字解析失败");
+      }
+    } else {
+      const nameResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: "deepseek-chat",
+          messages: [
+            {
+              role: "system",
+              content: "你是一个专业的中国传统起名专家，精通五行八字、诗词典故。请始终返回有效的JSON格式数据，不要添加任何markdown标记或额外说明。"
+            },
+            {
+              role: "user",
+              content: buildNamePrompt(gender, nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength)
+            }
+          ],
+          temperature: 0.8,
+          max_tokens: nameCount > 5 ? 4000 : 3000,
+        }),
+      });
+
+      if (!nameResponse.ok) {
+        const errorText = await nameResponse.text();
+        console.error("Deepseek API error response:", errorText);
+        return c.json({ error: "名字生成服务暂时不可用，请稍后重试" }, 500);
+      }
+
+      const data = await nameResponse.json();
+      
+      if (!data.choices?.[0]) {
+        console.error("Invalid API response format", data);
+        throw new Error("API 响应格式错误");
+      }
+
+      let content = data.choices[0].message.content.trim().replace(/```json\s*/g, "").replace(/```\s*/g, "");
+      
+      try {
+        const parsed = JSON.parse(content);
+        finalNamesData.boyNames = parsed.boyNames || [];
+        finalNamesData.girlNames = parsed.girlNames || [];
+        console.log(`Parsed single result: ${finalNamesData.boyNames.length} boys, ${finalNamesData.girlNames.length} girls`);
+      } catch (e) {
+        console.error("Failed to parse JSON result:", e, { content });
+        throw new Error("名字解析失败");
+      }
     }
 
-    const data = await nameResponse.json();
-    console.log("Deepseek API response received");
+    console.log("Deepseek API response processed successfully");
 
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      console.error("Unexpected API response structure:", data);
-      return c.json({ error: "服务响应异常，请重试" }, 500);
-    }
-
-    let content = data.choices[0].message.content.trim();
-    
-    // Remove markdown code blocks if present
-    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "");
-
-    // Parse the JSON response
-    let namesData;
-    try {
-      namesData = JSON.parse(content);
-    } catch (parseError) {
-      console.error("Failed to parse JSON from AI response:", content);
-      return c.json({ 
-        error: "名字生成失败，请重试" 
-      }, 500);
-    }
-    
     // Clean and validate names data - truncate overly long explanations
     const cleanNamesArray = (names: any[]) => {
       if (!Array.isArray(names)) return [];
@@ -453,18 +545,14 @@ ${jsonFormat}
     };
     
     // Clean both boyNames and girlNames
-    if (namesData.boyNames) {
-      namesData.boyNames = cleanNamesArray(namesData.boyNames);
-    }
-    if (namesData.girlNames) {
-      namesData.girlNames = cleanNamesArray(namesData.girlNames);
-    }
+    finalNamesData.boyNames = cleanNamesArray(finalNamesData.boyNames);
+    finalNamesData.girlNames = cleanNamesArray(finalNamesData.girlNames);
 
     // Return the generated names with additional info
     return c.json({
       names: {
-        boyNames: namesData.boyNames || [],
-        girlNames: namesData.girlNames || [],
+        boyNames: finalNamesData.boyNames,
+        girlNames: finalNamesData.girlNames,
       },
       metadata: {
         zodiac,

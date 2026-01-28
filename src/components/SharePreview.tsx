@@ -80,7 +80,7 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="relative w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="relative w-full max-w-4xl max-h-[90vh] flex flex-col">
         {/* Close Button */}
         <Button
           onClick={onClose}
@@ -99,7 +99,7 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
             style={{ 
               all: 'initial',
               width: '100%', 
-              maxWidth: '600px', 
+              maxWidth: '800px', 
               margin: '0 auto',
               backgroundColor: '#ffffff',
               overflow: 'hidden',
@@ -156,73 +156,100 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
             </div>
 
             {/* Names */}
-            <div style={{ padding: '8px 32px 32px 32px' }}>
+            <div style={{ padding: '8px 0 32px 0' }}>
               {names.map((name, index) => (
                 <div
                   key={index}
                   style={{
                     background: colors.cardBg,
-                    borderRadius: '20px',
-                    padding: '28px',
+                    borderRadius: '24px',
+                    padding: '24px 32px',
                     border: `1px solid ${gender === "boy" ? '#dbeafe' : '#fce7f3'}`,
-                    marginBottom: index < names.length - 1 ? '20px' : '0',
+                    marginBottom: index < names.length - 1 ? '24px' : '0',
                     position: 'relative',
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)'
                   }}
                 >
-                  {/* Decorative corner */}
-                  <div style={{
-                    position: 'absolute',
-                    top: 0,
-                    right: 0,
-                    width: '60px',
-                    height: '60px',
-                    background: `linear-gradient(225deg, ${gender === "boy" ? '#dbeafe' : '#fce7f3'} 0%, transparent 50%)`,
-                    opacity: 0.5
-                  }} />
-
                   <div style={{ marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', marginBottom: '6px' }}>
-                      <h3 style={{ 
-                        fontSize: '32px', 
-                        fontFamily: 'Georgia, serif', 
-                        color: colors.accent, 
-                        fontWeight: 700, 
-                        margin: 0 
-                      }}>
-                        {name.chineseName}
-                      </h3>
-                      <span style={{ color: colors.muted, fontSize: '16px', fontWeight: 500 }}>{name.pinyin}</span>
+                    {/* Header: Name, Pinyin and English Name in a more horizontal layout */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'flex-start', 
+                      marginBottom: '16px',
+                      gap: '20px'
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <h3 style={{ 
+                          fontSize: '36px', 
+                          fontFamily: 'Georgia, serif', 
+                          color: colors.accent, 
+                          fontWeight: 700, 
+                          margin: '0 0 4px 0',
+                          lineHeight: '1.2'
+                        }}>
+                          {name.chineseName}
+                        </h3>
+                        <p style={{ 
+                          color: '#6b7280', 
+                          fontSize: '16px', 
+                          margin: 0,
+                          fontWeight: 500,
+                          letterSpacing: '0.5px'
+                        }}>{name.pinyin}</p>
+                      </div>
+                      <div style={{ textAlign: 'right', paddingTop: '4px' }}>
+                        <p style={{ 
+                          color: '#4b5563', 
+                          fontWeight: 600, 
+                          fontSize: '18px', 
+                          margin: 0,
+                          fontFamily: 'Georgia, serif',
+                          fontStyle: 'italic'
+                        }}>{name.englishName}</p>
+                      </div>
                     </div>
-                    <p style={{ 
-                      color: '#4b5563', 
-                      fontWeight: 600, 
-                      fontSize: '18px', 
-                      margin: 0,
-                      fontFamily: 'Georgia, serif'
-                    }}>{name.englishName}</p>
+
+                    {/* Explanation */}
+                    <div style={{
+                      background: 'rgba(255, 255, 255, 0.6)',
+                      backdropFilter: 'blur(4px)',
+                      borderRadius: '16px',
+                      padding: '20px',
+                      border: '1px solid rgba(255, 255, 255, 0.5)',
+                      boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)'
+                    }}>
+                      <p style={{ 
+                        color: '#4b5563', 
+                        fontSize: '15px', 
+                        lineHeight: '1.7', 
+                        margin: 0,
+                        textAlign: 'justify'
+                      }}>{name.explanation}</p>
+                    </div>
                   </div>
 
-                  <div style={{
-                    background: 'rgba(255, 255, 255, 0.7)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    border: '1px solid rgba(255, 255, 255, 0.5)'
-                  }}>
-                    <p style={{ 
-                      color: '#374151', 
-                      fontSize: '15px', 
-                      lineHeight: '1.7', 
-                      margin: 0,
-                      textAlign: 'justify'
-                    }}>{name.explanation}</p>
-                  </div>
-
-                  {/* Decorative dots at bottom */}
-                  <div style={{ marginTop: '16px', display: 'flex', gap: '6px' }}>
-                    <div style={{ width: '40px', height: '4px', borderRadius: '2px', background: colors.muted, opacity: 0.6 }} />
-                    <div style={{ width: '20px', height: '4px', borderRadius: '2px', background: colors.muted, opacity: 0.4 }} />
-                    <div style={{ width: '10px', height: '4px', borderRadius: '2px', background: colors.muted, opacity: 0.2 }} />
+                  {/* Decorative Elements matching NameCard.tsx */}
+                  <div style={{ display: 'flex', itemsCenter: 'center', gap: '8px' }}>
+                    <div style={{ 
+                      height: '4px', 
+                      width: '48px', 
+                      borderRadius: '999px', 
+                      background: gender === "boy" ? '#93c5fd' : '#fda4af' 
+                    }} />
+                    <div style={{ 
+                      height: '4px', 
+                      width: '24px', 
+                      borderRadius: '999px', 
+                      background: gender === "boy" ? '#bfdbfe' : '#fecdd3' 
+                    }} />
+                    <div style={{ 
+                      height: '4px', 
+                      width: '12px', 
+                      borderRadius: '999px', 
+                      background: gender === "boy" ? '#dbeafe' : '#ffe4e6' 
+                    }} />
                   </div>
                 </div>
               ))}
