@@ -186,7 +186,11 @@ export default function ResultPage() {
     };
   }, [loading]);
 
-  const generateNames = async (isRegenerate = false, gender: "both" | "boy" | "girl" = "both") => {
+  const generateNames = async (
+    isRegenerateOrEvent: boolean | unknown = false,
+    gender: "both" | "boy" | "girl" = "both",
+  ) => {
+    const isRegenerate = typeof isRegenerateOrEvent === "boolean" ? isRegenerateOrEvent : false;
     // 随机选择一条高雅文案
     const randomLoadingText = loadingTexts[Math.floor(Math.random() * loadingTexts.length)];
     setLoadingText(randomLoadingText);
@@ -587,7 +591,7 @@ export default function ResultPage() {
     return (
       <ErrorState
         error={error}
-        onRetry={generateNames}
+        onRetry={() => generateNames(false, genderParam)}
         onBack={() => navigate("/")}
       />
     );
