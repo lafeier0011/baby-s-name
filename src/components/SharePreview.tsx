@@ -70,6 +70,7 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
       link.download = `吉名宝典-${gender === "boy" ? "男宝" : "女宝"}名字-${timestamp}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
+      onClose();
     } catch (error) {
       console.error("Download failed:", error);
       alert(`下载失败：${error instanceof Error ? error.message : '未知错误'}\n请截图此错误并联系开发者`);
@@ -141,14 +142,14 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
                 border: `1px solid ${gender === "boy" ? '#bfdbfe' : '#fecdd3'}`,
                 boxShadow: `0 4px 12px ${gender === "boy" ? 'rgba(59, 130, 246, 0.08)' : 'rgba(244, 63, 94, 0.08)'}`
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '32px', fontSize: '15px', fontWeight: 600 }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '12px 20px', fontSize: '14px', fontWeight: 600 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                     <span style={{ color: colors.muted }}>生肖:</span> {metadata.zodiac}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                     <span style={{ color: colors.muted }}>五行:</span> {metadata.element}
                   </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                     <span style={{ color: colors.muted }}>星座:</span> {metadata.westernZodiac}
                   </span>
                 </div>
