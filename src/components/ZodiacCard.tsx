@@ -12,6 +12,7 @@ interface Metadata {
 
 interface ZodiacCardProps {
   metadata: Metadata;
+  showBirthDate?: boolean;
 }
 
 // 生肖SVG图标组件（简约线条风格）
@@ -278,7 +279,7 @@ function getElementConfig(element: string) {
   };
 }
 
-export default function ZodiacCard({ metadata }: ZodiacCardProps) {
+export default function ZodiacCard({ metadata, showBirthDate = true }: ZodiacCardProps) {
   const elementCfg = getElementConfig(metadata.element);
 
   return (
@@ -333,6 +334,7 @@ export default function ZodiacCard({ metadata }: ZodiacCardProps) {
         </div>
 
         {/* 出生日期卡片 */}
+        {showBirthDate && (
         <div className="text-center p-5 rounded-xl bg-gradient-to-br from-purple-50/80 via-pink-50/50 to-purple-50/80 border border-purple-100/50 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex justify-center mb-3">
             <div className="w-14 h-14 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
@@ -344,6 +346,7 @@ export default function ZodiacCard({ metadata }: ZodiacCardProps) {
             {formatDate(metadata.birthDate)}
           </p>
         </div>
+        )}
       </div>
 
       {/* Career and Hobbies Section */}

@@ -1,9 +1,43 @@
 import { Context } from "npm:hono";
 
-// Calculate Chinese Zodiac
-function getChineseZodiac(year: number): string {
+// 立春日期数据（用于准确计算生肖）
+const springBeginDates: Record<number, [number, number]> = {
+  2020: [2, 4], 2021: [2, 3], 2022: [2, 4], 2023: [2, 4], 2024: [2, 4],
+  2025: [2, 3], 2026: [2, 4], 2027: [2, 4], 2028: [2, 4], 2029: [2, 3],
+  2030: [2, 4], 2031: [2, 4], 2032: [2, 4], 2033: [2, 3], 2034: [2, 4],
+  2035: [2, 4], 2036: [2, 4], 2037: [2, 3], 2038: [2, 4], 2039: [2, 4],
+  2040: [2, 4],
+};
+
+// Calculate Chinese Zodiac based on Lichun (立春) date
+function getChineseZodiac(date: Date): string {
   const zodiacs = ["鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪"];
-  return zodiacs[(year - 1900) % 12];
+  
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  
+  // 获取该年的立春日期
+  const springBegin = springBeginDates[year];
+  
+  if (!springBegin) {
+    // 如果没有数据，使用简化算法（以2月4日为近似立春）
+    const isBeforeSpring = month < 2 || (month === 2 && day < 4);
+    const zodiacYear = isBeforeSpring ? year - 1 : year;
+    return zodiacs[(zodiacYear - 1900) % 12];
+  }
+  
+  const [springMonth, springDay] = springBegin;
+  
+  // 判断日期是否在立春之前
+  const isBeforeSpring = 
+    month < springMonth || 
+    (month === springMonth && day < springDay);
+  
+  // 如果在立春之前，使用上一年的生肖
+  const zodiacYear = isBeforeSpring ? year - 1 : year;
+  
+  return zodiacs[(zodiacYear - 1900) % 12];
 }
 
 // Calculate Five Elements (simplified version based on birth year)
@@ -43,14 +77,14 @@ function getWesternZodiac(month: number, day: number): string {
 export async function generateNames(c: Context) {
   try {
     const body = await c.req.json();
-    const { fatherName, motherName, birthDate, birthTime, preferences, surnameChoice, previousNames, nameCount = 5, gender = "both" } = body;
+    const { fatherName, motherName, birthDate, birthTime, preferences, surnameChoice, previousNames, nameCount = 5, gender = "both", nameLength, babyGender } = body;
     
     // Debug log
     console.log("Received request body:", JSON.stringify(body, null, 2));
 
-    if (!fatherName || !motherName || !birthDate) {
-      console.error("Missing required fields:", { fatherName, motherName, birthDate });
-      return c.json({ error: "请填写完整的父母姓名和宝宝出生日期" }, 400);
+    if (!fatherName || !motherName) {
+      console.error("Missing required fields:", { fatherName, motherName });
+      return c.json({ error: "请填写完整的父母姓名" }, 400);
     }
 
     const apiKey = Deno.env.get("DEEPSEEK_API_KEY");
@@ -59,11 +93,33 @@ export async function generateNames(c: Context) {
       return c.json({ error: "服务暂时不可用，请稍后重试" }, 500);
     }
 
-    // Parse birth date
-    const birthDateObj = new Date(birthDate);
-    const year = birthDateObj.getFullYear();
-    const month = birthDateObj.getMonth() + 1;
-    const day = birthDateObj.getDate();
+    // Parse birth date or use current date as default
+    let birthDateObj: Date;
+    let year: number;
+    let month: number;
+    let day: number;
+    let zodiac: string;
+    let element: string;
+    let westernZodiac: string;
+    
+    if (birthDate) {
+      birthDateObj = new Date(birthDate);
+      year = birthDateObj.getFullYear();
+      month = birthDateObj.getMonth() + 1;
+      day = birthDateObj.getDate();
+      zodiac = getChineseZodiac(birthDateObj);
+      element = getFiveElements(year);
+      westernZodiac = getWesternZodiac(month, day);
+    } else {
+      // Use current year for basic calculations if no birthDate provided
+      const currentDate = new Date();
+      year = currentDate.getFullYear();
+      month = currentDate.getMonth() + 1;
+      day = currentDate.getDate();
+      zodiac = getChineseZodiac(currentDate);
+      element = getFiveElements(year);
+      westernZodiac = getWesternZodiac(month, day);
+    }
     
     // Format birth time if provided
     let birthTimeText = "";
@@ -72,9 +128,7 @@ export async function generateNames(c: Context) {
     }
     
     // Get Chinese cultural elements
-    const zodiac = getChineseZodiac(year);
-    const element = getFiveElements(year);
-    const westernZodiac = getWesternZodiac(month, day);
+    // zodiac, element, westernZodiac already calculated above
 
     // Extract surname based on user's choice
     const surname = (surnameChoice === "mother" ? motherName : fatherName).charAt(0);
@@ -206,21 +260,23 @@ ${customExpectationText ? '3. ' : '2. '}每个名字必须包含：
    - 完整中文名（${surname}+名字）
    - 拼音
    - 对应的英文名
-   - 详细解释（80字内，必须��含：五行属性 + 具体出处 + 寓意解析）
+   - 详细解释（60-80字，必须含：五行属性 + 具体出处 + 寓意解析）
+      ⚠️ 解释字段严格限制在80字以内，超过80字将被视为无效！
 ${customExpectationText ? '4' : '3'}. 名字需符合中国传统文化、五行平衡、生辰八字原理
 ${customExpectationText ? '5' : '4'}. 严格遵循用户的偏好设置进行取名
 ${customExpectationText ? '6' : '5'}. 寓意美好、音韵优美、易读易记
 ${customExpectationText ? '7' : '6'}. 英文名可以是音译或意境对应的英文名
 ${customExpectationText ? '8' : '7'}. 🔴【关键要求】出处必须与名字中的具体字有直接关联！
-   - 例如：名字"思齐"必须源自《诗经·大雅·思齐》"思齐大任，文王之母"
-   - 例如：名字"修远"必须源自《楚辞·离骚》"路漫漫其修远兮，吾将上下而求索"
-   - 例如：名字"君行"必须源自《易经·乾卦》"天行健，君子以自强不息"
-   - 例如：名字"明德"必须源自《大学》"大学之道，在明明德"
+   - 例如：名字\"思齐\"必须源自《诗经·大雅·思齐》\"思齐大任，文王之母\"
+   - 例如：名字\"修远\"必须源自《楚辞·离骚》\"路漫漫其修远兮，吾将上下而求索\"
+   - 例如：名字\"君行\"必须源自《易经·乾卦》\"天行健，君子以自强不息\"
+   - 例如：名字\"明德\"必须源自《大学》\"大学之道，在明明德\"
    - 不要生成与出处无关的名字！名字的字必须出现在引用的原文中！
 ${customExpectationText ? '9' : '8'}. 出处格式要求：
    - 必须精确到具体篇章
-   - 必须引用包含名字中字的原文
-   - 格式：源自《典籍·篇章》"原文引用（必须包含名字中的字）"
+   - 必须引用包含名字中字的原文（原文不超过20字）
+   - 格式：源自《典籍·篇章》「原文引用」
+   - ⚠️ 原文引用必须简短，不要复制整篇文章！
 ${customExpectationText ? '10' : '9'}. 必须严格按照以下JSON格式返回，不要添加任何其他文字：
 
 ${jsonFormat}
@@ -374,34 +430,41 @@ ${jsonFormat}
         error: "名字生成失败，请重试" 
       }, 500);
     }
-
-    // Validate response based on gender
-    if (gender === "boy") {
-      if (!namesData.boyNames || !Array.isArray(namesData.boyNames)) {
-        console.error("Invalid boy names structure in response:", namesData);
-        return c.json({ error: "名字生成失败，请重试" }, 500);
-      }
-      // Ensure girlNames array exists (empty)
-      namesData.girlNames = namesData.girlNames || [];
-    } else if (gender === "girl") {
-      if (!namesData.girlNames || !Array.isArray(namesData.girlNames)) {
-        console.error("Invalid girl names structure in response:", namesData);
-        return c.json({ error: "名字生成失败，请重试" }, 500);
-      }
-      // Ensure boyNames array exists (empty)
-      namesData.boyNames = namesData.boyNames || [];
-    } else {
-      if (!namesData.boyNames || !Array.isArray(namesData.boyNames) || !namesData.girlNames || !Array.isArray(namesData.girlNames)) {
-        console.error("Invalid names structure in response:", namesData);
-        return c.json({ error: "名字生成失败，请重试" }, 500);
-      }
+    
+    // Clean and validate names data - truncate overly long explanations
+    const cleanNamesArray = (names: any[]) => {
+      if (!Array.isArray(names)) return [];
+      return names.map(name => {
+        if (name.explanation && name.explanation.length > 150) {
+          console.warn(`Truncating overly long explanation for ${name.chineseName}: ${name.explanation.length} chars`);
+          // Try to find a sentence break
+          const truncated = name.explanation.substring(0, 120);
+          const lastPeriod = Math.max(
+            truncated.lastIndexOf('。'),
+            truncated.lastIndexOf('，'),
+            truncated.lastIndexOf('、')
+          );
+          name.explanation = lastPeriod > 60 
+            ? truncated.substring(0, lastPeriod + 1) 
+            : truncated + '...';
+        }
+        return name;
+      });
+    };
+    
+    // Clean both boyNames and girlNames
+    if (namesData.boyNames) {
+      namesData.boyNames = cleanNamesArray(namesData.boyNames);
+    }
+    if (namesData.girlNames) {
+      namesData.girlNames = cleanNamesArray(namesData.girlNames);
     }
 
     // Return the generated names with additional info
     return c.json({
       names: {
-        boyNames: namesData.boyNames,
-        girlNames: namesData.girlNames,
+        boyNames: namesData.boyNames || [],
+        girlNames: namesData.girlNames || [],
       },
       metadata: {
         zodiac,

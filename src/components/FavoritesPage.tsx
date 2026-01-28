@@ -5,6 +5,7 @@ import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { getFavoritesByGender, clearFavorites, FavoriteName, removeFavorite } from "../utils/favorites";
 import NameCard from "./NameCard";
+import Footer from "./Footer";
 
 export default function FavoritesPage() {
   const navigate = useNavigate();
@@ -169,27 +170,7 @@ export default function FavoritesPage() {
           </>
         )}
 
-        {/* Author Section */}
-        <div className="mt-8 md:mt-12 pb-6">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="flex-1 max-w-[100px] h-px bg-gradient-to-r from-transparent via-rose-200 to-rose-300" />
-            <Heart className="w-4 h-4 text-rose-400 fill-rose-200 animate-pulse" />
-            <div className="flex-1 max-w-[100px] h-px bg-gradient-to-l from-transparent via-rose-200 to-rose-300" />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-sm md:text-base font-serif text-stone-600">
-              Made with <span className="text-rose-500">♥</span> by <span className="font-medium bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">拉斐尔 & 小圆</span>
-            </p>
-            <p className="text-xs md:text-sm text-stone-400 italic">
-              To 我们未出生的宝宝
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 mt-3">
-            <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" style={{ animationDelay: '0ms' }} />
-            <Sparkles className="w-2.5 h-2.5 text-rose-400 animate-pulse" style={{ animationDelay: '300ms' }} />
-            <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" style={{ animationDelay: '600ms' }} />
-          </div>
-        </div>
+        <Footer />
       </div>
     </div>
   );

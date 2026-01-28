@@ -1,11 +1,12 @@
 import { Context } from "npm:hono";
 import * as kv from "./kv_store.tsx";
 
-const MAX_REQUESTS_PER_MINUTE = 5;
-const TIME_WINDOW_MS = 60 * 1000; // 1分钟
+const MAX_REQUESTS_PER_DAY = 20;
+const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 24小时
 
 interface RateLimitRecord {
-  timestamps: number[];
+  count: number;
+  resetAt: number; // Unix timestamp when the limit resets
 }
 
 // 获取客户端标识符（IP地址或其他）
@@ -18,13 +19,14 @@ function getClientIdentifier(c: Context): string {
   // 优先使用这些header中的IP
   const ip = cfConnectingIp || realIp || forwardedFor?.split(",")[0] || "unknown";
   
-  return `rate_limit:${ip}`;
+  return `rate_limit_daily:${ip}`;
 }
 
-// 清理过期的时间戳
-function cleanOldTimestamps(timestamps: number[]): number[] {
-  const now = Date.now();
-  return timestamps.filter(ts => now - ts < TIME_WINDOW_MS);
+// 获取今天结束的时间戳（当地时间午夜）
+function getTodayEndTimestamp(): number {
+  const now = new Date();
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+  return tomorrow.getTime();
 }
 
 // 速率限制中间件
@@ -32,30 +34,50 @@ export async function rateLimitMiddleware(c: Context, next: () => Promise<void>)
   const clientKey = getClientIdentifier(c);
   
   try {
+    const now = Date.now();
+    
     // 获取当前记录
     const record = await kv.get<RateLimitRecord>(clientKey);
-    const timestamps = record?.timestamps || [];
     
-    // 清理过期的时间戳
-    const cleanTimestamps = cleanOldTimestamps(timestamps);
+    // 如果没有记录或已过期，创建新记录
+    if (!record || now >= record.resetAt) {
+      const newRecord: RateLimitRecord = {
+        count: 1,
+        resetAt: getTodayEndTimestamp(),
+      };
+      await kv.set(clientKey, newRecord);
+      
+      // 添加响应头，告知前端剩余次数
+      c.header("X-RateLimit-Remaining", String(MAX_REQUESTS_PER_DAY - 1));
+      c.header("X-RateLimit-Reset", String(newRecord.resetAt));
+      
+      await next();
+      return;
+    }
     
     // 检查是否超过限制
-    if (cleanTimestamps.length >= MAX_REQUESTS_PER_MINUTE) {
-      const oldestTimestamp = Math.min(...cleanTimestamps);
-      const resetIn = Math.ceil((TIME_WINDOW_MS - (Date.now() - oldestTimestamp)) / 1000);
+    if (record.count >= MAX_REQUESTS_PER_DAY) {
+      const resetIn = Math.ceil((record.resetAt - now) / 1000 / 60); // 转换为分钟
+      const resetHours = Math.floor(resetIn / 60);
+      const resetMinutes = resetIn % 60;
       
-      console.log(`Rate limit exceeded for ${clientKey}`);
+      console.log(`Daily rate limit exceeded for ${clientKey}`);
       
       return c.json({
-        error: `请求过于频繁，请在 ${resetIn} 秒后重试。每分钟最多可请求${MAX_REQUESTS_PER_MINUTE}次。`,
-        resetIn,
+        error: `今日取名次数已用完（${MAX_REQUESTS_PER_DAY}次/天），请在${resetHours > 0 ? `${resetHours}小时` : ''}${resetMinutes}分钟后重试。`,
+        resetIn: resetIn * 60, // 返回秒数
         remaining: 0,
+        limit: MAX_REQUESTS_PER_DAY,
       }, 429);
     }
     
-    // 记录本次请求
-    cleanTimestamps.push(Date.now());
-    await kv.set(clientKey, { timestamps: cleanTimestamps });
+    // 增加计数
+    record.count += 1;
+    await kv.set(clientKey, record);
+    
+    // 添加响应头，告知前端剩余次数
+    c.header("X-RateLimit-Remaining", String(MAX_REQUESTS_PER_DAY - record.count));
+    c.header("X-RateLimit-Reset", String(record.resetAt));
     
     // 继续处理请求
     await next();

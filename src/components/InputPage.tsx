@@ -12,6 +12,7 @@ import { Textarea } from "./ui/textarea";
 import { Calendar as CalendarIcon, Sparkles, Star, Moon, Sun, BookOpen, Flower2, Palette, Atom, Users, MessageSquare, Heart, Baby, Hash } from "lucide-react";
 import { zhCN } from "date-fns/locale/zh-CN";
 import { rateLimiter } from "../utils/rateLimiter";
+import Footer from "./Footer";
 
 // Helper function to format Chinese date
 function formatDate(date: Date): string {
@@ -19,6 +20,14 @@ function formatDate(date: Date): string {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   return `${year}年${month}月${day}日`;
+}
+
+// Helper function to format date for backend (YYYY-MM-DD)
+function formatDateForBackend(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function InputPage() {
@@ -33,12 +42,14 @@ export default function InputPage() {
   const [remainingRequests, setRemainingRequests] = useState(5);
   
   // Preferences state
-  const [culturalPrefs, setCulturalPrefs] = useState<string[]>([]);
-  const [meaningPrefs, setMeaningPrefs] = useState<string[]>([]);
-  const [stylePrefs, setStylePrefs] = useState<string[]>([]);
-  const [elementPrefs, setElementPrefs] = useState<string[]>([]);
+  const [culturalPref, setCulturalPref] = useState<string>("");
+  const [meaningPref, setMeaningPref] = useState<string>("");
+  const [stylePref, setStylePref] = useState<string>("");
+  const [elementPref, setElementPref] = useState<string>("");
   const [customExpectation, setCustomExpectation] = useState("");
   const [nameCount, setNameCount] = useState<5 | 10>(5);
+  const [nameLength, setNameLength] = useState<"single" | "double" | "both">("double"); // 单字/双字，默认双字
+  const [babyGender, setBabyGender] = useState<string[]>(["girl"]); // 性别选择（多选），默认女宝
 
   // Cultural preference options
   const culturalOptions = [
@@ -95,51 +106,38 @@ export default function InputPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleCheckboxChange = (
-    category: 'cultural' | 'meaning' | 'style' | 'element',
-    value: string,
-    checked: boolean
-  ) => {
-    const setters = {
-      cultural: setCulturalPrefs,
-      meaning: setMeaningPrefs,
-      style: setStylePrefs,
-      element: setElementPrefs,
-    };
-    
-    const setter = setters[category];
-    setter(prev => 
-      checked ? [...prev, value] : prev.filter(item => item !== value)
-    );
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (fatherName && motherName && birthDate) {
+    if (fatherName && motherName) {
       // Format birth time if both hour and minute are selected
       const birthTime = birthHour && birthMinute ? `${birthHour}:${birthMinute}` : undefined;
+      
+      // Clear previous results to force regeneration
+      localStorage.removeItem('nameGeneratorResults');
       
       navigate("/result", {
         state: {
           fatherName,
           motherName,
-          birthDate: birthDate.toISOString(),
+          birthDate: birthDate ? formatDateForBackend(birthDate) : undefined,
           birthTime,
           preferences: {
-            cultural: culturalPrefs,
-            meaning: meaningPrefs,
-            style: stylePrefs,
-            element: elementPrefs,
+            cultural: culturalPref ? [culturalPref] : [],
+            meaning: meaningPref ? [meaningPref] : [],
+            style: stylePref ? [stylePref] : [],
+            element: elementPref ? [elementPref] : [],
             customExpectation: customExpectation,
           },
           surnameChoice,
           nameCount,
+          nameLength,
+          babyGender,
         },
       });
     }
   };
 
-  const isFormValid = fatherName && motherName && birthDate;
+  const isFormValid = fatherName && motherName;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-rose-50/30 to-blue-50/30 flex items-center justify-center p-4">
@@ -247,7 +245,10 @@ export default function InputPage() {
 
             {/* Birth Date */}
             <div className="space-y-2 md:space-y-3">
-              <Label className="text-stone-700 text-sm md:text-base">宝宝出生日期</Label>
+              <Label className="text-stone-700 text-sm md:text-base flex items-center gap-2">
+                宝宝出生日期
+                <span className="text-xs text-stone-400 font-normal">（可选，提供更精准的五行分析）</span>
+              </Label>
               <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button
@@ -342,23 +343,25 @@ export default function InputPage() {
                   </div>
                   经典文化偏好
                 </Label>
-                <div className="grid grid-cols-2 gap-3">
+                <RadioGroup 
+                  value={culturalPref} 
+                  onValueChange={setCulturalPref}
+                  className="grid grid-cols-2 gap-3"
+                >
                   {culturalOptions.map((item) => (
                     <label
                       key={item}
-                      className="flex items-center gap-2 p-3 rounded-lg bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors"
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                        culturalPref === item
+                          ? "border-amber-300 bg-amber-50/50 shadow-sm"
+                          : "border-transparent bg-stone-50 hover:bg-stone-100"
+                      }`}
                     >
-                      <Checkbox
-                        id={`cultural-${item}`}
-                        checked={culturalPrefs.includes(item)}
-                        onCheckedChange={(checked) =>
-                          handleCheckboxChange('cultural', item, checked as boolean)
-                        }
-                      />
+                      <RadioGroupItem value={item} id={`cultural-${item}`} />
                       <span className="text-sm text-stone-700">{item}</span>
                     </label>
                   ))}
-                </div>
+                </RadioGroup>
               </div>
 
               {/* Meaning Preferences */}
@@ -369,23 +372,25 @@ export default function InputPage() {
                   </div>
                   寓意方向选择
                 </Label>
-                <div className="grid grid-cols-2 gap-3">
+                <RadioGroup 
+                  value={meaningPref} 
+                  onValueChange={setMeaningPref}
+                  className="grid grid-cols-2 gap-3"
+                >
                   {meaningOptions.map((item) => (
                     <label
                       key={item}
-                      className="flex items-center gap-2 p-3 rounded-lg bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors"
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                        meaningPref === item
+                          ? "border-rose-300 bg-rose-50/50 shadow-sm"
+                          : "border-transparent bg-stone-50 hover:bg-stone-100"
+                      }`}
                     >
-                      <Checkbox
-                        id={`meaning-${item}`}
-                        checked={meaningPrefs.includes(item)}
-                        onCheckedChange={(checked) =>
-                          handleCheckboxChange('meaning', item, checked as boolean)
-                        }
-                      />
+                      <RadioGroupItem value={item} id={`meaning-${item}`} />
                       <span className="text-sm text-stone-700">{item}</span>
                     </label>
                   ))}
-                </div>
+                </RadioGroup>
               </div>
 
               {/* Style Preferences */}
@@ -396,23 +401,25 @@ export default function InputPage() {
                   </div>
                   风格偏好
                 </Label>
-                <div className="grid grid-cols-2 gap-3">
+                <RadioGroup 
+                  value={stylePref} 
+                  onValueChange={setStylePref}
+                  className="grid grid-cols-2 gap-3"
+                >
                   {styleOptions.map((item) => (
                     <label
                       key={item}
-                      className="flex items-center gap-2 p-3 rounded-lg bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors"
+                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                        stylePref === item
+                          ? "border-purple-300 bg-purple-50/50 shadow-sm"
+                          : "border-transparent bg-stone-50 hover:bg-stone-100"
+                      }`}
                     >
-                      <Checkbox
-                        id={`style-${item}`}
-                        checked={stylePrefs.includes(item)}
-                        onCheckedChange={(checked) =>
-                          handleCheckboxChange('style', item, checked as boolean)
-                        }
-                      />
+                      <RadioGroupItem value={item} id={`style-${item}`} />
                       <span className="text-sm text-stone-700">{item}</span>
                     </label>
                   ))}
-                </div>
+                </RadioGroup>
               </div>
 
               {/* Element Preferences */}
@@ -423,33 +430,35 @@ export default function InputPage() {
                   </div>
                   五行补益
                 </Label>
-                <div className="flex flex-wrap gap-3">
+                <RadioGroup 
+                  value={elementPref} 
+                  onValueChange={setElementPref}
+                  className="flex flex-wrap gap-3"
+                >
                   {elementOptions.map((item) => (
                     <label
                       key={item}
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-stone-50 hover:bg-stone-100 cursor-pointer transition-colors"
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all ${
+                        elementPref === item
+                          ? "border-blue-300 bg-blue-50/50 shadow-sm"
+                          : "border-transparent bg-stone-50 hover:bg-stone-100"
+                      }`}
                     >
-                      <Checkbox
-                        id={`element-${item}`}
-                        checked={elementPrefs.includes(item)}
-                        onCheckedChange={(checked) =>
-                          handleCheckboxChange('element', item, checked as boolean)
-                        }
-                      />
+                      <RadioGroupItem value={item} id={`element-${item}`} />
                       <span className="text-sm text-stone-700">{item}</span>
                     </label>
                   ))}
-                </div>
+                </RadioGroup>
               </div>
 
-              {/* Custom Expectation */}
+              {/* Custom Description */}
               <div className="space-y-3">
                 <Label htmlFor="customExpectation" className="text-stone-700 text-sm md:text-base flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
                     <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-100 to-teal-200 flex items-center justify-center">
                       <MessageSquare className="w-4 h-4 text-emerald-700" />
                     </div>
-                    <span>自定义期望</span>
+                    <span>自定义描述</span>
                   </div>
                   <span className={`text-xs font-normal ${
                     customExpectation.length > 100 ? 'text-red-500' : 'text-stone-400'
@@ -473,7 +482,132 @@ export default function InputPage() {
                   />
                 </div>
                 <p className="text-xs text-stone-500">
-                  描述您对名字的特殊期望，我们会在生成时优先考虑
+                  您可以在这里进一步描述您对宝宝名字的要求
+                </p>
+              </div>
+
+              {/* Name Length Selection (单字/双字) */}
+              <div className="space-y-3">
+                <Label className="text-stone-700 text-sm md:text-base flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-green-100 to-emerald-200 flex items-center justify-center">
+                    <Hash className="w-4 h-4 text-green-700" />
+                  </div>
+                  名字字数
+                </Label>
+                <RadioGroup
+                  value={nameLength}
+                  onValueChange={(value) => setNameLength(value as "single" | "double" | "both")}
+                  className="grid grid-cols-3 gap-3"
+                >
+                  <label
+                    htmlFor="single"
+                    className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      nameLength === "single"
+                        ? "border-green-300 bg-green-50/50 shadow-sm"
+                        : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                    }`}
+                  >
+                    <RadioGroupItem value="single" id="single" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-stone-700">单字名</p>
+                      <p className="text-xs text-stone-500 mt-0.5">如：韩立</p>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor="double"
+                    className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      nameLength === "double"
+                        ? "border-green-300 bg-green-50/50 shadow-sm"
+                        : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                    }`}
+                  >
+                    <RadioGroupItem value="double" id="double" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-stone-700">双字名</p>
+                      <p className="text-xs text-stone-500 mt-0.5">如：向之礼</p>
+                    </div>
+                  </label>
+                  <label
+                    htmlFor="both"
+                    className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 cursor-pointer transition-all ${
+                      nameLength === "both"
+                        ? "border-green-300 bg-green-50/50 shadow-sm"
+                        : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                    }`}
+                  >
+                    <RadioGroupItem value="both" id="both" />
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-stone-700">不限</p>
+                      <p className="text-xs text-stone-500 mt-0.5">两种都要</p>
+                    </div>
+                  </label>
+                </RadioGroup>
+              </div>
+
+              {/* Baby Gender Selection (性别选择) */}
+              <div className="space-y-3">
+                <Label className="text-stone-700 text-sm md:text-base flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-100 to-purple-200 flex items-center justify-center">
+                    <Baby className="w-4 h-4 text-violet-700" />
+                  </div>
+                  宝宝性别
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      babyGender.includes("boy")
+                        ? "border-blue-300 bg-blue-50/50 shadow-sm"
+                        : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                    }`}
+                  >
+                    <Checkbox
+                      id="gender-boy"
+                      checked={babyGender.includes("boy")}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setBabyGender(prev => [...prev, "boy"]);
+                        } else {
+                          // At least one gender must be selected
+                          if (babyGender.length > 1) {
+                            setBabyGender(prev => prev.filter(g => g !== "boy"));
+                          }
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-stone-700">男宝</p>
+                      <p className="text-xs text-stone-500 mt-0.5">生成男宝名字</p>
+                    </div>
+                  </label>
+                  <label
+                    className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      babyGender.includes("girl")
+                        ? "border-rose-300 bg-rose-50/50 shadow-sm"
+                        : "border-stone-200 bg-stone-50 hover:border-stone-300"
+                    }`}
+                  >
+                    <Checkbox
+                      id="gender-girl"
+                      checked={babyGender.includes("girl")}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setBabyGender(prev => [...prev, "girl"]);
+                        } else {
+                          // At least one gender must be selected
+                          if (babyGender.length > 1) {
+                            setBabyGender(prev => prev.filter(g => g !== "girl"));
+                          }
+                        }
+                      }}
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-stone-700">女宝</p>
+                      <p className="text-xs text-stone-500 mt-0.5">生成女宝名字</p>
+                    </div>
+                  </label>
+                </div>
+                <p className="text-xs text-stone-500">
+                  💡 可以同时选择，也可以只选其中一个
                 </p>
               </div>
 
@@ -555,7 +689,7 @@ export default function InputPage() {
                     : 'text-amber-700'
                 }`}>
                   {remainingRequests === 0 
-                    ? '⚠️ 已达到每分钟最大请求次数，请稍后再试' 
+                    ? '⚠️ 已达到每分钟最大请求次��，请稍后再试' 
                     : `💡 剩余 ${remainingRequests} 次生成机会（每分钟最多5次）`}
                 </p>
               </div>
@@ -573,31 +707,14 @@ export default function InputPage() {
         </div>
 
         {/* Footer Note */}
-        <p className="text-center text-xs md:text-sm text-stone-400 mt-6 md:mt-8 px-4">
+        <p 
+          className="text-center text-xs md:text-sm text-stone-400 px-4"
+          style={{ marginTop: '24px', marginBottom: '24px' }}
+        >
           基于传统文化、五行八字、诗词典故智能生成
         </p>
 
-        {/* Author Section */}
-        <div className="mt-8 md:mt-12 pb-6">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <div className="flex-1 max-w-[100px] h-px bg-gradient-to-r from-transparent via-rose-200 to-rose-300" />
-            <Heart className="w-4 h-4 text-rose-400 fill-rose-200 animate-pulse" />
-            <div className="flex-1 max-w-[100px] h-px bg-gradient-to-l from-transparent via-rose-200 to-rose-300" />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-sm md:text-base font-serif text-stone-600">
-              Made with <span className="text-rose-500">♥</span> by <span className="font-medium bg-gradient-to-r from-rose-500 to-pink-500 bg-clip-text text-transparent">拉斐尔 & 小圆</span>
-            </p>
-            <p className="text-xs md:text-sm text-stone-400 italic">
-              To 我们未出生的宝宝
-            </p>
-          </div>
-          <div className="flex items-center justify-center gap-1.5 mt-3">
-            <Sparkles className="w-3 h-3 text-amber-400 animate-pulse" style={{ animationDelay: '0ms' }} />
-            <Sparkles className="w-2.5 h-2.5 text-rose-400 animate-pulse" style={{ animationDelay: '300ms' }} />
-            <Sparkles className="w-3 h-3 text-blue-400 animate-pulse" style={{ animationDelay: '600ms' }} />
-          </div>
-        </div>
+        <Footer />
       </div>
     </div>
   );
