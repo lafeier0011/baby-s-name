@@ -699,7 +699,7 @@ export default function InputPage() {
             <Button
               type="submit"
               disabled={!isFormValid}
-              className="w-full h-12 md:h-14 text-base md:text-lg bg-gradient-to-r from-rose-400 to-pink-400 hover:from-rose-500 hover:to-pink-500 text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 md:h-14 text-base md:text-lg rounded-xl !text-white !bg-gradient-to-r !from-slate-700 !to-indigo-800 hover:!brightness-110 shadow-lg shadow-indigo-100 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed border-none"
             >
               开始生成名字
             </Button>

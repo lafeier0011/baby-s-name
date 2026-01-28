@@ -637,7 +637,7 @@ export default function ResultPage() {
             <Button
               onClick={handleRegenerate}
               disabled={regenerating}
-              className="bg-gradient-to-r from-rose-400 to-pink-400 hover:from-rose-500 hover:to-pink-500 text-white flex-shrink-0"
+              className="!text-white flex-shrink-0 !bg-gradient-to-r !from-slate-700 !to-indigo-800 hover:!brightness-110 shadow-md shadow-indigo-100 transition-all hover:scale-105 active:scale-95 border-none"
             >
               {regenerating ? (
                 <>

@@ -104,7 +104,7 @@ export default function FavoritesPage() {
             </p>
             <Button
               onClick={() => navigate("/")}
-              className="bg-gradient-to-r from-rose-400 to-pink-400 hover:from-rose-500 hover:to-pink-500 text-white"
+              className="!text-white !bg-gradient-to-r !from-slate-700 !to-indigo-800 hover:!brightness-110 shadow-lg shadow-indigo-100 transition-all hover:scale-[1.05] active:scale-[0.95] border-none"
             >
               <Sparkles className="mr-2 h-4 w-4" />
               开始取名
