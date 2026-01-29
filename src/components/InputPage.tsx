@@ -45,7 +45,7 @@ export default function InputPage() {
   const [culturalPref, setCulturalPref] = useState<string>("");
   const [meaningPref, setMeaningPref] = useState<string>("");
   const [stylePref, setStylePref] = useState<string>("");
-  const [elementPref, setElementPref] = useState<string>("");
+  const [elementPref, setElementPref] = useState<string[]>([]);
   const [customExpectation, setCustomExpectation] = useState("");
   const [nameCount, setNameCount] = useState<5 | 10>(5);
   const [nameLength, setNameLength] = useState<"single" | "double" | "both">("double"); // 单字/双字，默认双字
@@ -125,7 +125,7 @@ export default function InputPage() {
             cultural: culturalPref ? [culturalPref] : [],
             meaning: meaningPref ? [meaningPref] : [],
             style: stylePref ? [stylePref] : [],
-            element: elementPref ? [elementPref] : [],
+            element: elementPref,
             customExpectation: customExpectation,
           },
           surnameChoice,
@@ -430,25 +430,34 @@ export default function InputPage() {
                   </div>
                   五行补益
                 </Label>
-                <RadioGroup 
-                  value={elementPref} 
-                  onValueChange={setElementPref}
-                  className="flex flex-wrap gap-3"
-                >
-                  {elementOptions.map((item) => (
-                    <label
-                      key={item}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all ${
-                        elementPref === item
-                          ? "border-blue-300 bg-blue-50/50 shadow-sm"
-                          : "border-transparent bg-stone-50 hover:bg-stone-100"
-                      }`}
-                    >
-                      <RadioGroupItem value={item} id={`element-${item}`} />
-                      <span className="text-sm text-stone-700">{item}</span>
-                    </label>
-                  ))}
-                </RadioGroup>
+                <div className="flex flex-wrap gap-3">
+                  {elementOptions.map((item) => {
+                    const checked = elementPref.includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-all ${
+                          checked
+                            ? "border-blue-300 bg-blue-50/50 shadow-sm"
+                            : "border-transparent bg-stone-50 hover:bg-stone-100"
+                        }`}
+                      >
+                        <Checkbox
+                          id={`element-${item}`}
+                          checked={checked}
+                          onCheckedChange={(nextChecked) => {
+                            if (nextChecked) {
+                              setElementPref((prev) => (prev.includes(item) ? prev : [...prev, item]));
+                            } else {
+                              setElementPref((prev) => prev.filter((v) => v !== item));
+                            }
+                          }}
+                        />
+                        <span className="text-sm text-stone-700">{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Custom Description */}
