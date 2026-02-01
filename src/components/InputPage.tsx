@@ -417,7 +417,7 @@ export default function InputPage() {
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-100 to-violet-200 flex items-center justify-center">
                     <Palette className="w-4 h-4 text-purple-700" />
                   </div>
-                  风格偏好（可多选）
+                  风格偏好
                 </Label>
                 <div className="grid grid-cols-2 gap-3">
                   {styleOptions.map((item) => {
