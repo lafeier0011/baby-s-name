@@ -340,7 +340,9 @@ export default function ResultPage() {
   const handleShare = (gender: "boy" | "girl") => {
     const names = gender === "boy" ? namesData?.boys : namesData?.girls;
     if (!names) return;
-    
+
+    // 保存当前路由为返回来源
+    localStorage.setItem('previousRoute', '/result');
     setSharePreview({ gender, names });
   };
 
@@ -615,15 +617,35 @@ export default function ResultPage() {
       <div className="min-h-screen bg-gradient-to-br from-stone-50 via-rose-50/30 to-blue-50/30">
         <div className="max-w-6xl mx-auto px-4 py-6 md:py-12">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8 relative">
             <Button
               variant="ghost"
-              onClick={() => navigate("/")}
+              onClick={() => {
+                // 保存当前结果到 localStorage，用于从收藏页面返回
+                if (namesData) {
+                  localStorage.setItem('returnToResult', 'true');
+                  localStorage.setItem('currentResults', JSON.stringify(namesData));
+                }
+                navigate("/");
+              }}
               className="text-stone-600 hover:text-stone-900"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               返回
             </Button>
+            <div className="absolute top-0 right-0">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  // 导航到收藏页面时，保存当前路由为返回来源
+                  localStorage.setItem('previousRoute', '/result');
+                  navigate("/favorites");
+                }}
+                className="text-stone-600 hover:text-stone-900 p-2"
+              >
+                <Heart className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
 
           {/* Zodiac Analysis Card */}

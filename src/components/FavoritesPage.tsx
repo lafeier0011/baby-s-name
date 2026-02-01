@@ -1,21 +1,48 @@
 import { useState, useEffect } from "react";
-import { ArrowLeft, Heart, Trash2, Sparkles } from "lucide-react";
+import { ArrowLeft, Heart, Trash2, Sparkles, Share2 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { Button } from "./ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { getFavoritesByGender, clearFavorites, FavoriteName, removeFavorite } from "../utils/favorites";
 import NameCard from "./NameCard";
 import Footer from "./Footer";
+import SharePreview from "./SharePreview";
+
+interface Name {
+  chineseName: string;
+  pinyin: string;
+  englishName: string;
+  explanation: string;
+}
 
 export default function FavoritesPage() {
   const navigate = useNavigate();
   const [boyFavorites, setBoyFavorites] = useState<FavoriteName[]>([]);
   const [girlFavorites, setGirlFavorites] = useState<FavoriteName[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [previousRoute, setPreviousRoute] = useState<string | null>(null);
 
   useEffect(() => {
-    loadFavorites();
-  }, [refreshKey]);
+    const prevRoute = localStorage.getItem('previousRoute');
+    if (prevRoute) {
+      setPreviousRoute(prevRoute);
+      localStorage.removeItem('previousRoute');
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setRefreshKey(prev => prev + 1);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('favorites-updated', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('favorites-updated', handleStorageChange);
+    };
+  }, []);
 
   const loadFavorites = () => {
     setBoyFavorites(getFavoritesByGender('boy'));
@@ -34,33 +61,41 @@ export default function FavoritesPage() {
     setRefreshKey(prev => prev + 1);
   };
 
-  // Listen for storage changes to refresh when a name is favorited/unfavorited
+  const handleShare = (gender: "boy" | "girl") => {
+    const favorites = gender === "boy" ? boyFavorites : girlFavorites;
+    if (favorites.length === 0) return;
+
+    const names: Name[] = favorites.map(fav => ({
+      chineseName: fav.chineseName,
+      pinyin: fav.pinyin || '',
+      englishName: fav.englishName || '',
+      explanation: fav.explanation || '',
+    }));
+
+    localStorage.setItem('previousRoute', '/favorites');
+    setSharePreview({ gender, names });
+  };
+
   useEffect(() => {
-    const handleStorageChange = () => {
-      setRefreshKey(prev => prev + 1);
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    // Use a custom event for same-window updates
-    window.addEventListener('favorites-updated', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('favorites-updated', handleStorageChange);
-    };
-  }, []);
+    loadFavorites();
+  }, [refreshKey]);
 
   const totalFavorites = boyFavorites.length + girlFavorites.length;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-rose-50/30 to-blue-50/30">
       <div className="max-w-6xl mx-auto px-4 py-6 md:py-12">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 md:mb-8">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              onClick={() => navigate("/")}
+              onClick={() => {
+                if (previousRoute === '/result') {
+                  navigate('/result');
+                } else {
+                  navigate('/');
+                }
+              }}
               className="text-stone-600 hover:text-stone-900"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
@@ -79,18 +114,39 @@ export default function FavoritesPage() {
             </div>
           </div>
           {totalFavorites > 0 && (
-            <Button
-              variant="outline"
-              onClick={handleClearAll}
-              className="text-stone-600 hover:text-rose-600 hover:border-rose-300"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              清空收藏
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleClearAll}
+                className="text-stone-600 hover:text-rose-600 hover:border-rose-300"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                清空收藏
+              </Button>
+              {boyFavorites.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleShare("boy")}
+                  className="text-stone-600 hover:text-blue-600 hover:border-blue-300"
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  分享男宝
+                </Button>
+              )}
+              {girlFavorites.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleShare("girl")}
+                  className="text-stone-600 hover:text-rose-600 hover:border-rose-300"
+                >
+                  <Share2 className="mr-2 h-4 w-4" />
+                  分享女宝
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Empty State */}
         {totalFavorites === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 md:py-24 px-4">
             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-rose-100 to-pink-100 flex items-center justify-center mb-6">
@@ -112,9 +168,8 @@ export default function FavoritesPage() {
           </div>
         ) : (
           <>
-            {/* Names Tabs */}
             <Tabs defaultValue="boy" className="w-full">
-              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6 md:mb-8 h-11 md:h-12 bg-white/80 backdrop-blur-sm">
+              <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-6 md:mb-8 h-11 md:h-12 bg-white/80">
                 <TabsTrigger
                   value="boy"
                   className="text-sm md:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-400 data-[state=active]:to-cyan-400 data-[state=active]:text-white"
@@ -123,7 +178,7 @@ export default function FavoritesPage() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="girl"
-                  className="text-sm md:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:to-pink-400 data-[state=active]:text-white"
+                  className="text-sm md:text-base data-[state=active]:bg-gradient-to-r data-[state=active]:from-rose-400 data-[state=active]:text-white"
                 >
                   女宝名字 ({girlFavorites.length})
                 </TabsTrigger>
@@ -136,13 +191,13 @@ export default function FavoritesPage() {
                   </div>
                 ) : (
                   boyFavorites.map((name, index) => (
-                    <NameCard 
-                      key={`${name.chineseName}-${index}`} 
-                      name={name} 
-                      gender="boy" 
-                      index={index} 
+                    <NameCard
+                      key={`${name.chineseName}-${index}`}
+                      name={name}
+                      gender="boy"
+                      index={index}
                       showDeleteButton={true}
-                      onDelete={() => handleDeleteFavorite(name.chineseName, 'boy')} 
+                      onDelete={() => handleDeleteFavorite(name.chineseName, 'boy')}
                     />
                   ))
                 )}
@@ -155,13 +210,13 @@ export default function FavoritesPage() {
                   </div>
                 ) : (
                   girlFavorites.map((name, index) => (
-                    <NameCard 
-                      key={`${name.chineseName}-${index}`} 
-                      name={name} 
-                      gender="girl" 
-                      index={index} 
+                    <NameCard
+                      key={`${name.chineseName}-${index}`}
+                      name={name}
+                      gender="girl"
+                      index={index}
                       showDeleteButton={true}
-                      onDelete={() => handleDeleteFavorite(name.chineseName, 'girl')} 
+                      onDelete={() => handleDeleteFavorite(name.chineseName, 'girl')}
                     />
                   ))
                 )}

@@ -25,6 +25,30 @@ interface SharePreviewProps {
 export default function SharePreview({ names, gender, metadata, onClose }: SharePreviewProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [selectedCards, setSelectedCards] = useState<Set<number>>(new Set());
+  const [allSelected, setAllSelected] = useState(false);
+
+  const handleSelectAll = () => {
+    if (allSelected) {
+      setSelectedCards(new Set());
+    } else {
+      const indices: number[] = [];
+      names.forEach((_, index) => indices.push(index));
+      setSelectedCards(new Set(indices));
+    }
+    setAllSelected(!allSelected);
+  };
+
+  const handleCardSelect = (index: number) => {
+    const newSelected = new Set(selectedCards);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedCards(newSelected);
+    setAllSelected(newSelected.size === names.length);
+  };
 
   // Use hex colors to avoid oklch issues with html2canvas
   const colors = gender === "boy" 
@@ -51,13 +75,71 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
 
   const handleDownload = async () => {
     if (!cardRef.current) return;
-    
+
+    // 🚀 优化：只导出选中的卡片（头部+选中卡片+尾部）
+    if (selectedCards.size === 0) {
+      alert('请至少选择一个卡片后再保存图片');
+      return;
+    }
+
     setDownloading(true);
-    
+
     try {
+      const cardContainer = cardRef.current as HTMLElement;
+      const cardElements = cardContainer.querySelectorAll('[data-card-index]');
+
+      // 找到头部和尾部元素
+      const headerSection = cardContainer.querySelector('[data-section="header"]');
+      const namesSection = cardContainer.querySelector('[data-section="names"]');
+      const footerSection = cardContainer.querySelector('[data-section="footer"]');
+      const controlSection = cardContainer.querySelector('[data-section="control"]');
+
+      // 找到所有复选框
+      const checkboxes = cardContainer.querySelectorAll('[data-checkbox]');
+
+      // 保存原始显示状态
+      const originalDisplays = new Map<number, string>();
+      cardElements.forEach((el, index) => {
+        originalDisplays.set(index, el.style.display || '');
+      });
+
+      const checkboxDisplays = new Map<number, string>();
+      checkboxes.forEach((el, index) => {
+        checkboxDisplays.set(index, el.style.display || '');
+      });
+
+      // 保存卡片的原始padding
+      const originalPaddings = new Map<number, string>();
+      cardElements.forEach((el, index) => {
+        originalPaddings.set(index, (el as HTMLElement).style.padding || '');
+      });
+
+      // 只显示选中的卡片
+      cardElements.forEach((el, index) => {
+        el.style.display = selectedCards.has(index) ? 'block' : 'none';
+      });
+
+      // 🚀 导出时卡片添加8px的左右padding
+      cardElements.forEach((el) => {
+        (el as HTMLElement).style.padding = '28px 20px 24px 20px';
+      });
+
+      // 🚀 隐藏所有复选框（导出时不显示）
+      checkboxes.forEach((el) => {
+        el.style.display = 'none';
+      });
+
+      // 🚀 隐藏选择控制行（导出时不显示）
+      if (controlSection) {
+        controlSection.style.display = 'none';
+      }
+
+      // 等待 DOM 更新
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       const canvas = await html2canvas(cardRef.current, {
         backgroundColor: "#ffffff",
-        scale: 3, // Higher scale for better quality
+        scale: 3,
         logging: false,
         useCORS: true,
         allowTaint: false,
@@ -65,9 +147,26 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
         removeContainer: true,
       });
 
+      // 恢复显示状态（包括控制行和复选框）
+      cardElements.forEach((el, index) => {
+        el.style.display = originalDisplays.get(index) || 'block';
+      });
+
+      cardElements.forEach((el, index) => {
+        (el as HTMLElement).style.padding = originalPaddings.get(index) || '28px 32px 24px 28px';
+      });
+
+      checkboxes.forEach((el, index) => {
+        el.style.display = checkboxDisplays.get(index) || 'flex';
+      });
+
+      if (controlSection) {
+        controlSection.style.display = 'flex';
+      }
+
       const link = document.createElement("a");
       const timestamp = new Date().toLocaleDateString("zh-CN").replace(/\//g, "-");
-      link.download = `吉名宝典-${gender === "boy" ? "男宝" : "女宝"}名字-${timestamp}.png`;
+      link.download = `吉名宝典-${gender === "boy" ? "男宝" : "女宝"}名字-${selectedCards.size}个-${timestamp}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       onClose();
@@ -108,7 +207,7 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
             }}
           >
             {/* Header - APP Name */}
-            <div style={{
+            <div data-section="header" style={{
               background: colors.gradient,
               padding: '40px 32px 30px 32px',
               textAlign: 'center',
@@ -156,55 +255,153 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
               </div>
             </div>
 
+            {/* Control Section - Select All */}
+            <div data-section="control" style={{ padding: '20px 32px 12px 32px', display: 'flex', alignItems: 'center' }}>
+              <button
+                onClick={handleSelectAll}
+                style={{
+                  background: allSelected ? colors.accent : '#ffffff',
+                  border: `2px solid ${colors.muted}`,
+                  color: allSelected ? '#ffffff' : colors.text,
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease',
+                  boxShadow: allSelected
+                    ? `0 2px 8px ${gender === 'boy' ? 'rgba(37, 99, 235, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
+                    : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                }}
+                onMouseOver={(e) => {
+                  if (!allSelected) {
+                    e.currentTarget.style.background = colors.accent;
+                    e.currentTarget.style.color = '#ffffff';
+                    e.currentTarget.style.borderColor = colors.accent;
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!allSelected) {
+                    e.currentTarget.style.background = '#ffffff';
+                    e.currentTarget.style.color = colors.text;
+                    e.currentTarget.style.borderColor = colors.muted;
+                  }
+                }}
+              >
+                {allSelected ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 17"></polyline>
+                  </svg>
+                ) : (
+                  <div style={{
+                    width: '16px',
+                    height: '16px',
+                    borderRadius: '3px',
+                    border: `2px solid ${colors.muted}`
+                  }} />
+                )}
+                <span style={{ marginLeft: '4px' }}>{allSelected ? '全不选' : '全选'}</span>
+              </button>
+              <span style={{ marginLeft: '16px', fontSize: '14px', color: '#ffffff', fontWeight: 500 }}>
+                已选择 <span style={{ color: colors.accent, fontWeight: 600, padding: '0 4px' }}>{selectedCards.size}</span>/{names.length} 个名字
+              </span>
+            </div>
+
             {/* Names */}
-            <div style={{ padding: '8px 0 32px 0' }}>
+            <div data-section="names" style={{ padding: '8px 0 32px 0' }}>
               {names.map((name, index) => (
                 <div
                   key={index}
+                  data-card-index={index}
                   style={{
-                    background: colors.cardBg,
+                    background: selectedCards.has(index)
+                      ? (gender === 'boy' ? '#dbeafe' : '#fce7f3')
+                      : colors.cardBg,
                     borderRadius: '24px',
-                    padding: '24px 32px',
-                    border: `1px solid ${gender === "boy" ? '#dbeafe' : '#fce7f3'}`,
+                    padding: '28px 32px 24px 28px',
+                    border: selectedCards.has(index)
+                      ? `2px solid ${colors.accent}`
+                      : `1px solid ${gender === "boy" ? '#dbeafe' : '#fce7f3'}`,
                     marginBottom: index < names.length - 1 ? '24px' : '0',
                     position: 'relative',
                     overflow: 'hidden',
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.03)'
+                    boxShadow: selectedCards.has(index)
+                      ? `0 4px 12px ${gender === "boy" ? 'rgba(37, 99, 235, 0.15)' : 'rgba(225, 29, 72, 0.15)'}`
+                      : '0 4px 12px rgba(0, 0, 0, 0.03)',
+                    cursor: 'pointer',
                   }}
+                  onClick={() => handleCardSelect(index)}
                 >
+                  {/* Checkbox in top-right corner */}
+                  <div
+                    data-checkbox={index}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCardSelect(index);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      top: '20px',
+                      right: '20px',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      border: selectedCards.has(index) ? 'none' : `2px solid ${colors.muted}`,
+                      background: selectedCards.has(index) ? colors.accent : '#ffffff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      zIndex: 1,
+                      boxShadow: selectedCards.has(index)
+                        ? `0 2px 8px ${gender === 'boy' ? 'rgba(37, 99, 235, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
+                        : '0 1px 3px rgba(0, 0, 0, 0.1)',
+                    }}
+                  >
+                    {selectedCards.has(index) && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 17"></polyline>
+                      </svg>
+                    )}
+                  </div>
+
                   <div style={{ marginBottom: '16px' }}>
                     {/* Header: Name, Pinyin and English Name in a more horizontal layout */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'flex-start', 
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
                       marginBottom: '16px',
                       gap: '20px'
                     }}>
                       <div style={{ flex: 1 }}>
-                        <h3 style={{ 
-                          fontSize: '28px', 
-                          fontFamily: 'Georgia, serif', 
-                          color: colors.accent, 
-                          fontWeight: 700, 
+                        <h3 style={{
+                          fontSize: '28px',
+                          fontFamily: 'Georgia, serif',
+                          color: colors.accent,
+                          fontWeight: 700,
                           margin: '0 0 4px 0',
                           lineHeight: '1.2'
                         }}>
                           {name.chineseName}
                         </h3>
-                        <p style={{ 
-                          color: '#6b7280', 
-                          fontSize: '16px', 
+                        <p style={{
+                          color: '#6b7280',
+                          fontSize: '16px',
                           margin: 0,
                           fontWeight: 500,
                           letterSpacing: '0.5px'
                         }}>{name.pinyin}</p>
                       </div>
-                      <div style={{ textAlign: 'right', paddingTop: '4px' }}>
-                        <p style={{ 
-                          color: '#4b5563', 
-                          fontWeight: 600, 
-                          fontSize: '18px', 
+                      <div style={{ textAlign: 'right', paddingTop: '4px', paddingRight: '50px' }}>
+                        <p style={{
+                          color: '#4b5563',
+                          fontWeight: 600,
+                          fontSize: '18px',
                           margin: 0,
                           fontFamily: 'Georgia, serif',
                           fontStyle: 'italic'
@@ -257,7 +454,7 @@ export default function SharePreview({ names, gender, metadata, onClose }: Share
             </div>
 
             {/* Footer - Author Signature */}
-            <div style={{ 
+            <div data-section="footer" style={{
               padding: '0 32px 40px 32px',
               textAlign: 'center'
             }}>
