@@ -37,12 +37,11 @@ interface NamesData {
 
 // AI思考步骤（带图标）
 const thinkingSteps = [
-  { text: "分析生辰八字", icon: Calendar, time: 6000, color: "text-purple-600" },
-  { text: "计算五行平衡", icon: Atom, time: 6000, color: "text-cyan-600" },
-  { text: "检索诗词经典", icon: BookOpen, time: 6000, color: "text-amber-600" },
-  { text: "匹配音韵节奏", icon: Music, time: 6000, color: "text-pink-600" },
-  { text: "生成吉祥名字", icon: Wand2, time: 6000, color: "text-rose-600" },
-  { text: "完善寓意解释", icon: Palette, time: 6000, color: "text-indigo-600" }
+  { text: "分析生辰八字", icon: Calendar, time: 4000, color: "text-purple-600" },
+  { text: "计算五行平衡", icon: Atom, time: 3000, color: "text-cyan-600" },
+  { text: "检索诗词经典", icon: BookOpen, time: 2000, color: "text-amber-600" },
+  { text: "生成吉祥名字", icon: Wand2, time: 8000, color: "text-rose-600" },
+  { text: "完善寓意解释", icon: Palette, time: 3000, color: "text-indigo-600" }
 ];
 
 // 高雅文化加载文案

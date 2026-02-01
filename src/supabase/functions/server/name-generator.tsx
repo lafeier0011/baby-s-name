@@ -312,98 +312,84 @@ export async function generateNames(c: Context) {
 
 要求简洁优雅，结合五行八字和星座特点，预测可能喜欢的兴趣爱好和活动。直接返回预测文本，不要标题。`;
 
-    console.log("Calling Deepseek API for zodiac analysis, career, hobbies and names...");
+    // 🚀 优化：合并三个分析请求为一次调用（方案一）
+    const combinedMetadataPrompt = `请为${year}年${month}月${day}日出生的宝宝生成以下三段分析（每段用 ||| 分隔）：
 
-    // Run basic analysis calls in parallel to save time
-    const [analysisResponse, careerResponse, hobbiesResponse] = await Promise.all([
-      // Call Deepseek API for zodiac analysis
-      fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "system",
-              content: "你是一个精通中西方占星学的专家，擅长结合生辰八字和星座分析性格与命运。"
-            },
-            {
-              role: "user",
-              content: analysisPrompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 300,
-        }),
-      }),
-      // Call Deepseek API for career prediction
-      fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "system",
-              content: "你是一个精通中西方占星学的专家，擅长根据生辰八字预测职业倾向。"
-            },
-            {
-              role: "user",
-              content: careerPrompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 100,
-        }),
-      }),
-      // Call Deepseek API for hobbies prediction
-      fetch("https://api.deepseek.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "deepseek-chat",
-          messages: [
-            {
-              role: "system",
-              content: "你是一个精通中西方占星学的专家，擅长根据生辰八字预测兴趣爱好。"
-            },
-            {
-              role: "user",
-              content: hobbiesPrompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 100,
-        }),
-      })
-    ]);
+【性格分析】
+星座：${westernZodiac}
+生肖：${zodiac}
+五行：${element}
 
+要求简洁优雅地描述性格特点、天赋才能和未来发展方向，融合中西方占星学精髓。返回分析文本，80字内。
+
+【职业预测】
+星座：${westernZodiac}
+生肖：${zodiac}
+五行：${element}
+
+要求简洁优雅，结合五行八字和星座特点，预测适合的职业领域和发展方向。返回预测文本，30字内。
+
+【兴趣爱好】
+星座：${westernZodiac}
+生肖：${zodiac}
+五行：${element}
+
+要求简洁优雅，结合五行八字和星座特点，预测可能喜欢的兴趣爱好和活动。返回预测文本，30字内。
+
+请直接返回三段内容，严格按照以下格式（用 ||| 分隔）：
+【性格分析】...内容...|||【职业预测】...内容...|||【兴趣爱好】...内容...`;
+
+    console.log("Calling Deepseek API for combined metadata analysis...");
+
+    // 🚀 优化：单次调用获取所有元数据（方案一）
+    const metadataResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content: "你是一个精通中西方占星学的专家，擅长结合生辰八字分析性格、职业和兴趣爱好。请严格按照要求的格式返回，用 ||| 分隔三段内容。"
+          },
+          {
+            role: "user",
+            content: combinedMetadataPrompt
+          }
+        ],
+        temperature: 0.7,
+        max_tokens: 500,  // 300+100+100，合并后总 token
+      }),
+    });
+
+    // 解析合并的元数据结果
     let zodiacAnalysis = "";
-    if (analysisResponse.ok) {
-      const analysisData = await analysisResponse.json();
-      zodiacAnalysis = analysisData.choices?.[0]?.message?.content?.trim() || "";
-    }
-
     let career = "";
-    if (careerResponse.ok) {
-      const careerData = await careerResponse.json();
-      career = careerData.choices?.[0]?.message?.content?.trim() || "";
+    let hobbies = "";
+
+    if (metadataResponse.ok) {
+      const metadataData = await metadataResponse.json();
+      const content = metadataData.choices?.[0]?.message?.content?.trim() || "";
+
+      // 使用 ||| 分隔符分割结果
+      const parts = content.split('|||');
+      if (parts.length >= 3) {
+        zodiacAnalysis = parts[0].replace('【性格分析】', '').trim();
+        career = parts[1].replace('【职业预测】', '').trim();
+        hobbies = parts[2].replace('【兴趣爱好】', '').trim();
+      } else {
+        // 如果分割失败，降级使用原始内容
+        console.warn('Failed to parse combined metadata, using fallback');
+        zodiacAnalysis = content;
+      }
+    } else {
+      console.error('Metadata API call failed:', metadataResponse.status);
     }
 
-    let hobbies = "";
-    if (hobbiesResponse.ok) {
-      const hobbiesData = await hobbiesResponse.json();
-      hobbies = hobbiesData.choices?.[0]?.message?.content?.trim() || "";
-    }
+    console.log(`Parsed metadata - zodiac: ${zodiacAnalysis.length} chars, career: ${career.length} chars, hobbies: ${hobbies.length} chars`);
 
     // Call Deepseek API for names (this is the most time-consuming part)
     // If gender is "both" and nameCount is large, we split it into two parallel calls to avoid timeout
