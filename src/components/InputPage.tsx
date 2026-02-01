@@ -41,10 +41,10 @@ export default function InputPage() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [remainingRequests, setRemainingRequests] = useState(5);
   
-  // Preferences state
-  const [culturalPref, setCulturalPref] = useState<string>("");
-  const [meaningPref, setMeaningPref] = useState<string>("");
-  const [stylePref, setStylePref] = useState<string>("");
+  // Preferences state - all support multiple selections now
+  const [culturalPref, setCulturalPref] = useState<string[]>([]);
+  const [meaningPref, setMeaningPref] = useState<string[]>([]);
+  const [stylePref, setStylePref] = useState<string[]>([]);
   const [elementPref, setElementPref] = useState<string[]>([]);
   const [customExpectation, setCustomExpectation] = useState("");
   const [nameCount, setNameCount] = useState<5 | 10>(5);
@@ -122,9 +122,9 @@ export default function InputPage() {
           birthDate: birthDate ? formatDateForBackend(birthDate) : undefined,
           birthTime,
           preferences: {
-            cultural: culturalPref ? [culturalPref] : [],
-            meaning: meaningPref ? [meaningPref] : [],
-            style: stylePref ? [stylePref] : [],
+            cultural: culturalPref.length > 0 ? culturalPref : [],
+            meaning: meaningPref.length > 0 ? meaningPref : [],
+            style: stylePref.length > 0 ? stylePref : [],
             element: elementPref,
             customExpectation: customExpectation,
           },
@@ -343,25 +343,34 @@ export default function InputPage() {
                   </div>
                   经典文化偏好
                 </Label>
-                <RadioGroup 
-                  value={culturalPref} 
-                  onValueChange={setCulturalPref}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {culturalOptions.map((item) => (
-                    <label
-                      key={item}
-                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                        culturalPref === item
-                          ? "border-amber-300 bg-amber-50/50 shadow-sm"
-                          : "border-transparent bg-stone-50 hover:bg-stone-100"
-                      }`}
-                    >
-                      <RadioGroupItem value={item} id={`cultural-${item}`} />
-                      <span className="text-sm text-stone-700">{item}</span>
-                    </label>
-                  ))}
-                </RadioGroup>
+                <div className="grid grid-cols-2 gap-3">
+                  {culturalOptions.map((item) => {
+                    const checked = culturalPref.includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                          checked
+                            ? "border-amber-300 bg-amber-50/50 shadow-sm"
+                            : "border-transparent bg-stone-50 hover:bg-stone-100"
+                        }`}
+                      >
+                        <Checkbox
+                          id={`cultural-${item}`}
+                          checked={checked}
+                          onCheckedChange={(nextChecked) => {
+                            if (nextChecked) {
+                              setCulturalPref((prev) => [...prev, item]);
+                            } else {
+                              setCulturalPref((prev) => prev.filter((v) => v !== item));
+                            }
+                          }}
+                        />
+                        <span className="text-sm text-stone-700">{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Meaning Preferences */}
@@ -372,25 +381,34 @@ export default function InputPage() {
                   </div>
                   寓意方向选择
                 </Label>
-                <RadioGroup 
-                  value={meaningPref} 
-                  onValueChange={setMeaningPref}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {meaningOptions.map((item) => (
-                    <label
-                      key={item}
-                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                        meaningPref === item
-                          ? "border-rose-300 bg-rose-50/50 shadow-sm"
-                          : "border-transparent bg-stone-50 hover:bg-stone-100"
-                      }`}
-                    >
-                      <RadioGroupItem value={item} id={`meaning-${item}`} />
-                      <span className="text-sm text-stone-700">{item}</span>
-                    </label>
-                  ))}
-                </RadioGroup>
+                <div className="grid grid-cols-2 gap-3">
+                  {meaningOptions.map((item) => {
+                    const checked = meaningPref.includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                          checked
+                            ? "border-rose-300 bg-rose-50/50 shadow-sm"
+                            : "border-transparent bg-stone-50 hover:bg-stone-100"
+                        }`}
+                      >
+                        <Checkbox
+                          id={`meaning-${item}`}
+                          checked={checked}
+                          onCheckedChange={(nextChecked) => {
+                            if (nextChecked) {
+                              setMeaningPref((prev) => [...prev, item]);
+                            } else {
+                              setMeaningPref((prev) => prev.filter((v) => v !== item));
+                            }
+                          }}
+                        />
+                        <span className="text-sm text-stone-700">{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Style Preferences */}
@@ -399,27 +417,36 @@ export default function InputPage() {
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-purple-100 to-violet-200 flex items-center justify-center">
                     <Palette className="w-4 h-4 text-purple-700" />
                   </div>
-                  风格偏好
+                  风格偏好（可多选）
                 </Label>
-                <RadioGroup 
-                  value={stylePref} 
-                  onValueChange={setStylePref}
-                  className="grid grid-cols-2 gap-3"
-                >
-                  {styleOptions.map((item) => (
-                    <label
-                      key={item}
-                      className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
-                        stylePref === item
-                          ? "border-purple-300 bg-purple-50/50 shadow-sm"
-                          : "border-transparent bg-stone-50 hover:bg-stone-100"
-                      }`}
-                    >
-                      <RadioGroupItem value={item} id={`style-${item}`} />
-                      <span className="text-sm text-stone-700">{item}</span>
-                    </label>
-                  ))}
-                </RadioGroup>
+                <div className="grid grid-cols-2 gap-3">
+                  {styleOptions.map((item) => {
+                    const checked = stylePref.includes(item);
+                    return (
+                      <label
+                        key={item}
+                        className={`flex items-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${
+                          checked
+                            ? "border-purple-300 bg-purple-50/50 shadow-sm"
+                            : "border-transparent bg-stone-50 hover:bg-stone-100"
+                        }`}
+                      >
+                        <Checkbox
+                          id={`style-${item}`}
+                          checked={checked}
+                          onCheckedChange={(nextChecked) => {
+                            if (nextChecked) {
+                              setStylePref((prev) => [...prev, item]);
+                            } else {
+                              setStylePref((prev) => prev.filter((v) => v !== item));
+                            }
+                          }}
+                        />
+                        <span className="text-sm text-stone-700">{item}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Element Preferences */}

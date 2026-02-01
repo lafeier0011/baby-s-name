@@ -73,7 +73,7 @@ function getWesternZodiac(month: number, day: number): string {
   return "摩羯座";
 }
 
-function buildNamePrompt(gender: string, nameCount: number, surname: string, fatherName: string, motherName: string, year: number, month: number, day: number, birthTimeText: string, zodiac: string, element: string, westernZodiac: string, prefText: string, excludeNamesText: string, customExpectationText: string, nameLength: string): string {
+function buildNamePrompt(gender: string, nameCount: number, surname: string, fatherName: string, motherName: string, year: number, month: number, day: number, birthTimeText: string, zodiac: string, element: string, westernZodiac: string, prefText: string, excludeNamesText: string, customExpectationText: string, nameLength: string, hasMultiplePreferences: boolean): string {
   let nameRequirement = "";
   let jsonFormat = "";
   
@@ -143,6 +143,12 @@ function buildNamePrompt(gender: string, nameCount: number, surname: string, fat
 五行属性：${element}
 星座：${westernZodiac}
 姓氏：${surname}${prefText}${excludeNamesText}
+${hasMultiplePreferences ? `
+🔴🔴🔴 【重要】用户选择了多个偏好选项，请务必在生成的名字中体现多样性！
+   - 如果用户选择了多个文化偏好（如"诗词经典、诸子百家"），名字列表中必须同时包含诗词经典相关的名字和诸子百家相关的名字
+   - 如果用户选择了多个寓意方向（如"品德修养、才学智慧"），名字列表中需要同时体现不同的寓意方向
+   - 请确保每个偏好类别都有代表性的名字，不要只偏向某一个选项
+` : ''}
 ${customExpectationText ? `
 ⚠️ ⚠️ ⚠️ 【用户特别要求 - 最高优先级】⚠️ ⚠️ ⚠️
 必须100%严格遵守：${customExpectationText}
@@ -151,14 +157,14 @@ ${customExpectationText ? `
 要求：
 ${customExpectationText ? `1. ⚠️ 【首要要求】${customExpectationText} - 这是最高优先级，必须100%严格遵守！
 2. ` : '1. '}${nameRequirement}
-${customExpectationText ? '3. ' : '2. '}每个名字必须包含：
+${customExpectationText ? '3. ' : '2. '}${hasMultiplePreferences ? '🔴 【关键】当用户选择多个偏好时，必须生成多样化的名字列表，确保每个偏好类别都有代表！' : '严格遵循用户的偏好设置进行取名'}
+${customExpectationText ? '4. ' : '3. '}每个名字必须包含：
    - 完整中文名（${surname}+名字）
    - 拼音
    - 对应的英文名
    - 详细解释（60-80字，必须含：五行属性 + 具体出处 + 寓意解析）
       ⚠️ 解释字段严格限制在80字以内，超过80字将被视为无效！
-${customExpectationText ? '4' : '3'}. 名字需符合中国传统文化、五行平衡、生辰八字原理
-${customExpectationText ? '5' : '4'}. 严格遵循用户的偏好设置进行取名
+${customExpectationText ? '5' : '4'}. 名字需符合中国传统文化、五行平衡、生辰八字原理
 ${customExpectationText ? '6' : '5'}. 寓意美好、音韵优美、易读易记
 ${customExpectationText ? '7' : '6'}. 英文名可以是音译或意境对应的英文名
 ${customExpectationText ? '8' : '7'}. 🔴【关键要求】出处必须与名字中的具体字有直接关联！
@@ -241,15 +247,19 @@ export async function generateNames(c: Context) {
 
     // Build preference text
     let prefText = "";
+    const hasMultipleCultural = preferences?.cultural && preferences.cultural.length > 1;
+    const hasMultipleMeaning = preferences?.meaning && preferences.meaning.length > 1;
+    const hasMultipleStyle = preferences?.style && preferences.style.length > 1;
+
     if (preferences) {
       if (preferences.cultural && preferences.cultural.length > 0) {
-        prefText += `\n经典文化偏好：${preferences.cultural.join('、')}`;
+        prefText += `\n经典文化偏好：${preferences.cultural.join('、')}${hasMultipleCultural ? '（需要生成与这些偏好相关的多种名字）' : ''}`;
       }
       if (preferences.meaning && preferences.meaning.length > 0) {
-        prefText += `\n寓意方向：${preferences.meaning.join('、')}`;
+        prefText += `\n寓意方向：${preferences.meaning.join('、')}${hasMultipleMeaning ? '（需要生成与这些寓意相关的多种名字）' : ''}`;
       }
       if (preferences.style && preferences.style.length > 0) {
-        prefText += `\n风格偏好：${preferences.style.join('、')}`;
+        prefText += `\n风格偏好：${preferences.style.join('、')}${hasMultipleStyle ? '（需要生成与这些风格相关的多种名字）' : ''}`;
       }
       if (preferences.element && preferences.element.length > 0) {
         prefText += `\n五行补益：${preferences.element.join('、')}`;
@@ -270,6 +280,13 @@ export async function generateNames(c: Context) {
     if (previousNames && previousNames.length > 0) {
       excludeNamesText = `\n\n特别注意：以下名字已经生成过，请避免重复，生成全新的名字：\n${previousNames.join('、')}`;
     }
+
+    // Check if user selected multiple preferences
+    const hasMultiplePreferences = (
+      (preferences?.cultural && preferences.cultural.length > 1) ||
+      (preferences?.meaning && preferences.meaning.length > 1) ||
+      (preferences?.style && preferences.style.length > 1)
+    );
 
     // Construct prompt for Deepseek - including zodiac analysis
     const analysisPrompt = `请为${year}年${month}月${day}日出生的宝宝生成星座性格分析（80字内），包括：
@@ -411,7 +428,7 @@ export async function generateNames(c: Context) {
               },
               {
                 role: "user",
-                content: buildNamePrompt("boy", nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength)
+                content: buildNamePrompt("boy", nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength, hasMultiplePreferences)
               }
             ],
             temperature: 0.8,
@@ -433,7 +450,7 @@ export async function generateNames(c: Context) {
               },
               {
                 role: "user",
-                content: buildNamePrompt("girl", nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength)
+                content: buildNamePrompt("girl", nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength, hasMultiplePreferences)
               }
             ],
             temperature: 0.8,
@@ -487,7 +504,7 @@ export async function generateNames(c: Context) {
             },
             {
               role: "user",
-              content: buildNamePrompt(gender, nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength)
+              content: buildNamePrompt(gender, nameCount, surname, fatherName, motherName, year, month, day, birthTimeText, zodiac, element, westernZodiac, prefText, excludeNamesText, customExpectationText, nameLength, hasMultiplePreferences)
             }
           ],
           temperature: 0.8,
